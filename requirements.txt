@@ -1,0 +1,23 @@
+# Core dependencies for GPU-accelerated live transcription with Whisper v3
+openai-whisper>=20231117
+faster-whisper>=1.0.0
+
+# Audio processing libraries
+pyaudio>=0.2.11
+librosa>=0.10.0
+soundfile>=0.12.1
+numpy>=1.24.0
+
+# PyTorch dependencies (for VAD and advanced features)
+torch>=2.0.0
+torchaudio>=2.0.0
+
+# Optional: For improved sentence segmentation
+opus-fast-mosestokenizer>=0.0.8.3
+
+# Optional: For Apple Silicon optimization (M1/M2 users only)
+# mlx-whisper
+
+# Development and utilities
+colorama>=0.4.6
+click>=8.1.0
