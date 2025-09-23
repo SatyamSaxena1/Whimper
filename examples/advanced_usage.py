@@ -13,7 +13,7 @@ import json
 # Add src directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from whimper import GPULiveTranscriber
+from whimper import GPULiveTranscriber, TranscriptionResult
 import pyaudio
 
 class TranscriptionLogger:
@@ -23,17 +23,24 @@ class TranscriptionLogger:
         self.output_file = output_file
         self.transcriptions = []
         
-    def __call__(self, text: str):
+    def __call__(self, result: TranscriptionResult | str):
         """Called for each transcription result"""
+        if isinstance(result, TranscriptionResult):
+            text = result.text
+            is_final = result.is_final
+        else:
+            text = str(result)
+            is_final = True
+
         entry = {
             "timestamp": time.time(),
             "formatted_time": time.strftime("%Y-%m-%d %H:%M:%S"),
             "text": text,
-            "is_final": text.startswith("[FINAL]")
+            "is_final": is_final
         }
-        
+
         self.transcriptions.append(entry)
-        
+
         # Print with nice formatting
         prefix = "📝" if entry["is_final"] else "🔊"
         print(f"{prefix} [{entry['formatted_time']}] {text}")
