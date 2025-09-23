@@ -11,12 +11,19 @@ import time
 # Add src directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from whimper import GPULiveTranscriber
+from whimper import GPULiveTranscriber, TranscriptionResult
 
-def simple_callback(text: str):
+
+def simple_callback(result: TranscriptionResult | str) -> None:
     """Simple callback that prints transcription with timestamp"""
     timestamp = time.strftime("%H:%M:%S")
-    print(f"[{timestamp}] {text}")
+    if isinstance(result, TranscriptionResult):
+        status = "FINAL" if result.is_final else "LIVE"
+        text = result.text
+    else:
+        status = "FINAL"
+        text = str(result)
+    print(f"[{timestamp}] {status} {text}")
 
 def main():
     print("Whimper Live Transcription Example")

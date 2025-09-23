@@ -1,19 +1,20 @@
 # Whimper 🎤
 
-**Live Audio Transcription with Whisper v3**
+**Live GPU Audio Transcription with Whisper v3**
 
-A real-time speech-to-text transcription application using OpenAI's Whisper v3 model. Whimper provides streaming transcription with word-level timestamps, voice activity detection, and cross-platform audio support.
+A real-time speech-to-text transcription application using OpenAI's Whisper v3 model. The engine now mirrors the streaming pipeline from [Collabora's WhisperLive](https://github.com/collabora/WhisperLive) project to deliver ultra-low latency transcription with GPU acceleration.
 
 ## ✨ Features
 
-- **Real-time Transcription**: Live audio processing with minimal latency
+- **GPU Streaming Pipeline**: Incremental transcription driven by a streaming session inspired by WhisperLive
+- **Real-time Transcription**: Live audio processing with minimal latency and partial updates
 - **Whisper v3 Support**: Uses the latest Whisper models including the optimized "turbo" variant
 - **Voice Activity Detection**: Intelligent audio processing with VAD
 - **Multi-language Support**: Supports 98+ languages with automatic detection
 - **Cross-platform Audio**: Works on Windows, macOS, and Linux
 - **Streaming Processing**: Continuous transcription with immediate results
 - **Customizable**: Flexible configuration for different use cases
-- **Python API**: Easy integration into existing applications
+- **Python API**: Easy integration with structured transcription events
 
 ## 🚀 Quick Start
 
@@ -66,20 +67,22 @@ python main.py --model turbo --language en --device 0
 
 **Python API**:
 ```python
-from src.whimper import GPULiveTranscriber
+from src.whimper import GPULiveTranscriber, TranscriptionResult
 
-def on_transcription(text):
-    print(f"Transcribed: {text}")
 
-# Create and start transcriber
+def on_transcription(result: TranscriptionResult | str) -> None:
+    if isinstance(result, TranscriptionResult):
+        print(f"[{result.pretty_status()}] {result.start:.2f}-{result.end:.2f}s: {result.text}")
+    else:
+        print(f"[FINAL] {result}")
+
+
 with GPULiveTranscriber(
     model_size="turbo",
-    language="en", 
-    callback=on_transcription
+    language="en",
+    callback=on_transcription,
 ) as transcriber:
     transcriber.start_recording()
-    
-    # Keep running...
     input("Press Enter to stop...")
 ```
 
@@ -102,7 +105,7 @@ Shows device selection, model configuration, and output logging.
 ### Model Options
 | Model | Size | Speed | Accuracy | Use Case |
 |-------|------|-------|----------|----------|
-| `turbo` | 798M | ⚡⚡⚡ | ⭐⭐⭐ | **Real-time (Recommended)** |
+| `turbo` | 798M | ⚡⚡⚡ | ⭐⭐⭐ | **Live streaming (Recommended)** |
 | `large-v3` | 1550M | ⚡⚡ | ⭐⭐⭐⭐ | High accuracy |
 | `medium` | 769M | ⚡⚡ | ⭐⭐⭐ | Balanced |
 | `small` | 244M | ⚡⚡⚡ | ⭐⭐ | Fast processing |
@@ -120,35 +123,38 @@ SAMPLE_RATE = 16000  # 16kHz (required by Whisper)
 CHANNELS = 1         # Mono audio
 CHUNK_SIZE = 1024    # Audio buffer size
 FORMAT = pyaudio.paInt16  # 16-bit audio
+# Streaming session constants used by the WhisperLive-style pipeline
+MIN_CHUNK_SECONDS = 0.6
+MAX_CHUNK_SECONDS = 6.0
+SAME_OUTPUT_THRESHOLD = 4
 ```
 
 ## 🔍 API Reference
 
-### GPULiveTranscriber Class
+### Key Classes
+
+- `TranscriptionResult`: Structured transcription event containing text, start/end times, confidence and whether the segment is final.
+- `SimpleVAD`: Lightweight energy based voice activity detector used when hardware VAD is unavailable.
+- `StreamingTranscriptionSession`: Maintains the rolling audio buffer and incremental GPU inference similar to WhisperLive.
+- `GPULiveTranscriber`: High level interface combining the session, PyAudio capture and callback handling.
 
 ```python
 class GPULiveTranscriber:
     def __init__(
-        self, 
+        self,
         model_size: str = "large-v3",
         language: str = "en",
         device: str = "auto",
         compute_type: str = "auto",
-        callback: Optional[Callable[[str], None]] = None
-    )
+        callback: Optional[Callable[[TranscriptionResult], None]] = None,
+        use_vad: bool = True,
+    ) -> None:
+        ...
 ```
 
-**Parameters**:
-- `model_size`: Whisper model size (`"turbo"`, `"large-v3"`, etc.)
-- `language`: Source language code (`"en"`, `"auto"`, etc.)
-- `device`: Device to use (`"cuda"`, `"cpu"`, `"auto"`)
-- `compute_type`: Compute precision (`"float16"`, `"int8"`, `"auto"`)
-- `callback`: Function called with transcription results
-
-**Methods**:
-- `start_recording(device_index=None)`: Start live transcription
-- `stop_recording()`: Stop transcription and finalize results
-- `cleanup()`: Release resources
+**Callback Behaviour**:
+- The callback receives `TranscriptionResult` instances for both live and final segments.
+- For backwards compatibility the callback may also accept a simple string.
 
 ## 🎛️ Command Line Options
 
@@ -157,10 +163,11 @@ python main.py [OPTIONS]
 
 Options:
   --model TEXT        Whisper model size [default: large-v3]
-  --language TEXT     Source language code [default: en]  
+  --language TEXT     Source language code [default: en]
   --device TEXT       Device to use [default: auto]
   --compute-type TEXT Compute precision [default: auto]
   --audio-device INT  Audio device index [default: auto]
+  --no-vad            Disable the built-in energy based VAD
   --help             Show help message
 ```
 
