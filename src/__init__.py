@@ -1,0 +1,1 @@
+"""Whimper package root."""

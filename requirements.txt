@@ -12,6 +12,10 @@ numpy>=1.24.0
 torch>=2.0.0
 torchaudio>=2.0.0
 
+# API server for IVR
+fastapi>=0.110.0
+uvicorn[standard]>=0.30.0
+
 # Optional: For improved sentence segmentation
 opus-fast-mosestokenizer>=0.0.8.3
 
